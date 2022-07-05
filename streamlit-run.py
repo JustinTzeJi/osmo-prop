@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 import plotly.express as px
 import plotly.graph_objects as go
 
-API_KEY = "5ae1b858-9eef-4af5-83db-de389ff13495"
+API_KEY = st.secrets["api_keys"]
 SQL_QUERY1 = """
 with b as (SELECT voter, proposal_id, vote_option
 FROM osmosis.core.fact_governance_votes
