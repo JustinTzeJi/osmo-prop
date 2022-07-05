@@ -1,0 +1,4 @@
+plotly
+keybert
+keyphrase_vectorizers
+sklearn

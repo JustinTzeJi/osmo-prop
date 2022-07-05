@@ -1,18 +1,14 @@
-from turtle import color
 import streamlit as st
 import requests
 import json
 import time
 import pandas as pd
 from numpy import nan
-import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.cluster import KMeans
 from keybert import KeyBERT
 from keyphrase_vectorizers import KeyphraseCountVectorizer
 from sklearn.decomposition import PCA
 import plotly.express as px
-import plotly.graph_objects as go
 
 API_KEY = st.secrets["api_keys"]
 SQL_QUERY1 = """
