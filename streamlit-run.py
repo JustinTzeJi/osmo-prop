@@ -162,7 +162,7 @@ with st.spinner(text="Querying Osmosis API for prop info"):
 	prop_desc[['desc','type']] = prop_desc.apply(lambda x: get_prop_desc(x['id']), axis=1)
 
 with st.container():
-	st.subheader("Keywords from Clusters")
+	st.header("Keywords from Clusters")
 	col1, col2 = st.columns(2)
 	with col1:
 		st.subheader("Cluster 0")
