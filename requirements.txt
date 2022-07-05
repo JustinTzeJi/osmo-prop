@@ -2,3 +2,5 @@ plotly
 keybert
 keyphrase_vectorizers
 sklearn
+pandas
+streamlit
