@@ -225,7 +225,6 @@ with st.container():
 	with st.expander("Cluster 0"):
 		y_df = pd.DataFrame(yes, columns=['phrase', 'relevance'])
 		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
-		st.write(yes)
 		st.plotly_chart(y_fig, use_container_width=True)
 		n_df = pd.DataFrame(no, columns=['phrase', 'relevance'])
 		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
