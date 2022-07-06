@@ -79,7 +79,7 @@ def run(SQL_QUERY):
     data = get_query_results(token)
     return data
 
-@st.experimental_memo
+@st.cache
 def quer(SQL_QUERY):
     pivot = run(SQL_QUERY)
     query = create_query(PIVOT_QUERY+pivot['results'][0][0])
@@ -141,14 +141,14 @@ def discrete_colorscale(bvals, colors):
         dcolorscale.extend([[nvals[k], colors[k]], [nvals[k+1], colors[k]]])
     return dcolorscale    
 
-@st.experimental_memo
-def prop_descr(df):
+@st.cache
+def prop_descr():
 	prop_desc = pd.DataFrame(columns=['id','type','desc'])
 	prop_desc['id'] = df.columns.values[:-3].tolist()
 	prop_desc[['desc','type']] = prop_desc.apply(lambda x: get_prop_desc(x['id']), axis=1)
 	return prop_desc
 
-@st.experimental_memo
+@st.cache
 def keyword_data():
 	yes, no, no_with_veto = get_keywords(cluster_df(0))
 	yes1, no1, no_with_veto1 = get_keywords(cluster_df(1))
@@ -161,7 +161,7 @@ col1, col2 = st.columns(2)
 with col1:
 	st.markdown('```If you get a 504 error, reload the page```')
 with col2:
-	st.markdown('```Data loading will take a few minutes```')
+	st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
 with st.spinner(text="Querying data from Flipside SDK"):
 	res = quer(SQL_QUERY1)
 
@@ -178,7 +178,7 @@ y_km = km.fit_predict(Xt)
 df['cluster']=pd.Series(y_km)
 
 with st.spinner(text="Querying Osmosis API for prop info..... This might take a while...."):
-	prop_desc = prop_descr(df)
+	prop_desc = prop_descr()
 with st.spinner(text="Extracting keywords & phrases with KeyBERT"):
 	yes, no, no_with_veto, yes1, no1, no_with_veto1, yes2, no2, no_with_veto2, yes3, no3, no_with_veto3 = keyword_data()
 
@@ -189,16 +189,9 @@ with st.container():
 	st.dataframe(display_df)
 
 
-ykm2 = ["Cluster " + str(numeric_string) for numeric_string in y_km]
-cluster_col = df['cluster'].replace({'Cluster 0':'#77a4ed','Cluster 1':'#ed8577','Cluster 2':'#77ed8f','Cluster 3':'#e9ed77' }).to_numpy()
 bvals = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 colors = ['#000000' , '#228b22', '#676767', '#ff7a00', '#ff0000' ]
 dcolorsc = discrete_colorscale(bvals, colors)
-
-# with st.container():
-# 	st.header("Voting activity of Osmosis Validators")
-# 	fig = px.imshow(df.drop(columns = ['VOTER','cluster']).set_index('LABEL'))
-# 	st.plotly_chart(fig, use_container_width=True)
 
 with st.container():
 	st.header("Voting activity of Osmosis Validators")
@@ -206,33 +199,18 @@ with st.container():
 	tickvals = [0,1,2,3,4]
 	ticktext = ['DID NOT VOTE', 'YES', 'ABSTAIN', 'NO', 'NO WITH VETO']
 	heatmap = go.Heatmap(z=df.drop(columns = ['VOTER','cluster']).set_index('LABEL'), y=df['LABEL'].to_numpy(), 
-						colorscale = dcolorsc,  
+						colorscale = dcolorsc, 
+						customdata= display_df,
+						hovertemplate="<b>%{y} </b><br>" +  "Prop %{x}<br>" + "Vote: %{customdata} ", 
 						colorbar = dict(thickness=10, 
 										tickvals=tickvals, 
 										ticktext=ticktext))
 	fig = go.Figure(data=[heatmap]).update_layout(title='Osmosis validator voting heatmap', yaxis_zeroline=False, xaxis_zeroline=False)
 	st.plotly_chart(fig, use_container_width=True)
 
-# hovertemplate=df['LABEL'][y_km==x]
-# with st.container():
-# 	st.header("K-means grouping of validators")
-# 	scatter = px.scatter(Xt, x= Xt[:,0], y=Xt[:,1], color=ykm2, symbol=ykm2)
-# 	st.plotly_chart(scatter, use_container_width=True)
-
-# if 'options' not in st.session_state:
-#     st.session_state.selectedpoints = []
-
-# st.session_state.selectedpoints = df.index[df['LABEL'].isin(options)].tolist()
 with st.container():
 	st.header("K-means grouping of validators")
 	options = st.multiselect(label = 'Select a validator/validators you would like to focus', options = df['LABEL'], default=[])
-	# pca_fig = go.Figure(data=go.Scatter(x=Xt[:,0],
-	# 									y=Xt[:,1],
-	# 									mode='markers',
-	# 									marker_color=cluster_col,	
-	# 									showlegend=True,
-	# 									text=df['LABEL'])).update_xaxes(showgrid=False,showticklabels=False,zeroline=False).update_yaxes(showgrid=False,showticklabels=False,zeroline=False).update_traces(selectedpoints=st.session_state.selectedpoints, selected_marker_color = 'lightgreen', selected_marker_size=10).update_layout(title='pca + kmeans clustering')
-	# st.plotly_chart(pca_fig, use_container_width=True)
 
 	pca_fig = go.Figure().update_xaxes(showgrid=False,showticklabels=False,zeroline=False).update_yaxes(showgrid=False,showticklabels=False,zeroline=False).update_layout(title='"Clustering" of validators based on voting activity')
 
@@ -256,34 +234,34 @@ with st.container():
 		st.plotly_chart(nw_fig, use_container_width=True)
 
 	with st.expander("Cluster 1"):
-		y_df = pd.DataFrame(yes1, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
-		st.plotly_chart(y_fig, use_container_width=True)
-		n_df = pd.DataFrame(no1, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
-		st.plotly_chart(n_fig, use_container_width=True)
-		nw_df = pd.DataFrame(no_with_veto1, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
-		st.plotly_chart(nw_fig, use_container_width=True)
+		y_df1 = pd.DataFrame(yes1, columns=['phrase', 'relevance'])
+		y_fig1 = px.bar(y_df1, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		st.plotly_chart(y_fig1, use_container_width=True)
+		n_df1 = pd.DataFrame(no1, columns=['phrase', 'relevance'])
+		n_fig1 = px.bar(n_df1, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		st.plotly_chart(n_fig1, use_container_width=True)
+		nw_df1 = pd.DataFrame(no_with_veto1, columns=['phrase', 'relevance'])
+		nw_fig1 = px.bar(nw_df1, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		st.plotly_chart(nw_fig1, use_container_width=True)
 
 	with st.expander("Cluster 2"):
-		y_df = pd.DataFrame(yes2, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
-		st.plotly_chart(y_fig, use_container_width=True)
-		n_df = pd.DataFrame(no2, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
-		st.plotly_chart(n_fig, use_container_width=True)
-		nw_df = pd.DataFrame(no_with_veto2, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
-		st.plotly_chart(nw_fig, use_container_width=True)
+		y_df2 = pd.DataFrame(yes2, columns=['phrase', 'relevance'])
+		y_fig2 = px.bar(y_df2, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		st.plotly_chart(y_fig2, use_container_width=True)
+		n_df2 = pd.DataFrame(no2, columns=['phrase', 'relevance'])
+		n_fig2 = px.bar(n_df2, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		st.plotly_chart(n_fig2, use_container_width=True)
+		nw_df2 = pd.DataFrame(no_with_veto2, columns=['phrase', 'relevance'])
+		nw_fig2 = px.bar(nw_df2, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		st.plotly_chart(nw_fig2, use_container_width=True)
 
 	with st.expander("Cluster 3"):
-		y_df = pd.DataFrame(yes3, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
-		st.plotly_chart(y_fig, use_container_width=True)
-		n_df = pd.DataFrame(no3, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
-		st.plotly_chart(n_fig, use_container_width=True)
-		nw_df = pd.DataFrame(no_with_veto3, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
-		st.plotly_chart(nw_fig, use_container_width=True)
+		y_df3 = pd.DataFrame(yes3, columns=['phrase', 'relevance'])
+		y_fig3 = px.bar(y_df3, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		st.plotly_chart(y_fig3, use_container_width=True)
+		n_df3 = pd.DataFrame(no3, columns=['phrase', 'relevance'])
+		n_fig3 = px.bar(n_df3, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		st.plotly_chart(n_fig3, use_container_width=True)
+		nw_df3 = pd.DataFrame(no_with_veto3, columns=['phrase', 'relevance'])
+		nw_fig3 = px.bar(nw_df3, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		st.plotly_chart(nw_fig3, use_container_width=True)
