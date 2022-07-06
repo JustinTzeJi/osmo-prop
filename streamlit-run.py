@@ -213,7 +213,7 @@ with st.container():
 	fig = go.Figure(data=[heatmap]).update_layout(title='Osmosis validator voting heatmap', yaxis_zeroline=False, xaxis_zeroline=False)
 	st.plotly_chart(fig, use_container_width=True)
 
-hovertemplate=df['LABEL'][y_km==x]
+# hovertemplate=df['LABEL'][y_km==x]
 # with st.container():
 # 	st.header("K-means grouping of validators")
 # 	scatter = px.scatter(Xt, x= Xt[:,0], y=Xt[:,1], color=ykm2, symbol=ykm2)
