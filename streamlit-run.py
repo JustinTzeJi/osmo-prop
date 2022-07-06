@@ -79,7 +79,7 @@ def run(SQL_QUERY):
     data = get_query_results(token)
     return data
 
-@st.cache
+@st.experimental_memo
 def quer(SQL_QUERY):
     pivot = run(SQL_QUERY)
     query = create_query(PIVOT_QUERY+pivot['results'][0][0])
@@ -141,14 +141,14 @@ def discrete_colorscale(bvals, colors):
         dcolorscale.extend([[nvals[k], colors[k]], [nvals[k+1], colors[k]]])
     return dcolorscale    
 
-@st.cache
+@st.experimental_memo
 def prop_descr():
 	prop_desc = pd.DataFrame(columns=['id','type','desc'])
 	prop_desc['id'] = df.columns.values[:-3].tolist()
 	prop_desc[['desc','type']] = prop_desc.apply(lambda x: get_prop_desc(x['id']), axis=1)
 	return prop_desc
 
-@st.cache
+@st.experimental_memo
 def keyword_data():
 	yes, no, no_with_veto = get_keywords(cluster_df(0))
 	yes1, no1, no_with_veto1 = get_keywords(cluster_df(1))
