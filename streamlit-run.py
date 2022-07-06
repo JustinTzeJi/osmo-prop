@@ -151,6 +151,7 @@ def prop_descr():
 @st.experimental_memo
 def keyword_data():
 	yes, no, no_with_veto = get_keywords(cluster_df(0))
+	print(yes)
 	yes1, no1, no_with_veto1 = get_keywords(cluster_df(1))
 	yes2, no2, no_with_veto2 = get_keywords(cluster_df(2))
 	yes3, no3, no_with_veto3 = get_keywords(cluster_df(3))
