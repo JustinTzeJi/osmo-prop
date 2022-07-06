@@ -170,6 +170,12 @@ test = sorted(list(map(int, res['columnLabels'][2::])))
 test.extend(res['columnLabels'][:2:])
 df = pd.DataFrame(data=res['results'],columns=test)
 df = df.replace({nan: 0})
+X = df.drop(columns = ['VOTER','LABEL'])
+pca = PCA()
+Xt = pca.fit_transform(X)
+km = KMeans(init="k-means++", n_clusters=4, n_init=4)
+y_km = km.fit_predict(Xt)
+df['cluster']=pd.Series(y_km)
 
 with st.spinner(text="Querying Osmosis API for prop info..... This might take a while...."):
 	prop_desc = prop_descr(df)
@@ -182,15 +188,9 @@ with st.container():
 	display_df = display_df.set_index(['LABEL','VOTER'])
 	st.dataframe(display_df)
 
-X = df.drop(columns = ['VOTER','LABEL'])
-pca = PCA()
-Xt = pca.fit_transform(X)
-km = KMeans(init="k-means++", n_clusters=4, n_init=4)
-y_km = km.fit_predict(Xt)
-df['cluster']=pd.Series(y_km)
+
 ykm2 = ["Cluster " + str(numeric_string) for numeric_string in y_km]
 cluster_col = df['cluster'].replace({'Cluster 0':'#77a4ed','Cluster 1':'#ed8577','Cluster 2':'#77ed8f','Cluster 3':'#e9ed77' }).to_numpy()
-# rev_subs = { v:k for k,v in cluster_col.items()}
 bvals = [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5]
 colors = ['#000000' , '#228b22', '#676767', '#ff7a00', '#ff0000' ]
 dcolorsc = discrete_colorscale(bvals, colors)
@@ -213,6 +213,7 @@ with st.container():
 	fig = go.Figure(data=[heatmap]).update_layout(title='Osmosis validator voting heatmap', yaxis_zeroline=False, xaxis_zeroline=False)
 	st.plotly_chart(fig, use_container_width=True)
 
+hovertemplate=df['LABEL'][y_km==x]
 # with st.container():
 # 	st.header("K-means grouping of validators")
 # 	scatter = px.scatter(Xt, x= Xt[:,0], y=Xt[:,1], color=ykm2, symbol=ykm2)
