@@ -151,7 +151,6 @@ def prop_descr():
 @st.experimental_memo
 def keyword_data():
 	yes, no, no_with_veto = get_keywords(cluster_df(0))
-	print(yes)
 	yes1, no1, no_with_veto1 = get_keywords(cluster_df(1))
 	yes2, no2, no_with_veto2 = get_keywords(cluster_df(2))
 	yes3, no3, no_with_veto3 = get_keywords(cluster_df(3))
@@ -226,6 +225,7 @@ with st.container():
 	with st.expander("Cluster 0"):
 		y_df = pd.DataFrame(yes, columns=['phrase', 'relevance'])
 		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		st.write(yes)
 		st.plotly_chart(y_fig, use_container_width=True)
 		n_df = pd.DataFrame(no, columns=['phrase', 'relevance'])
 		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
