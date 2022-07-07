@@ -157,11 +157,8 @@ def keyword_data():
 	return yes, no, no_with_veto, yes1, no1, no_with_veto1, yes2, no2, no_with_veto2, yes3, no3, no_with_veto3
 
 st.title('Attempt to classify Osmosis validators based on voting activity')
-col1, col2 = st.columns(2)
-with col1:
-	st.markdown('```If you get a 504 error, reload the page```')
-with col2:
-	st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
+st.markdown('```If you get a 504 error, reload the page```')
+st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
 with st.spinner(text="Querying data from Flipside SDK"):
 	res = quer(SQL_QUERY1)
 
@@ -183,7 +180,25 @@ with st.spinner(text="Extracting keywords & phrases with KeyBERT"):
 	yes, no, no_with_veto, yes1, no1, no_with_veto1, yes2, no2, no_with_veto2, yes3, no3, no_with_veto3 = keyword_data()
 
 with st.container():
-	st.header("Preview of data")
+	st.header('The Problem Statement')
+	st.markdown('With the ever growing amount and ever changing list of validators on the Osmosis chain, how does one evaluate and select validator with similar *on-chain "politics"/viewpoints* as oneself. It is a laborious task to monitor and keep up with validator socials, and voting activities on each proposal.')
+
+with st.container():
+	st.header('The "Solution"?')
+	st.markdown('Using the on-chain validator voting habits, we can use clustering algorithms to attempt to aggregate validators with similar votes. We can also extract prominent/recurring phrases that occurs in proposal descriptions to observe how said cluster of validators vote on a very surface level.')
+
+with st.container():
+	st.header('Limitations and Caveats')
+	st.markdown("""
+	1. Osmosis proposals are not usually polarized (for a reference of polarized proposals, see Cosmos Hub), hence *politics* might not be observable onchain?
+	2. A large percentage of proposal description includes URL to the complete proposals are removed, due to difficulty of parsing each and every type of website, document.
+	3. This dashboard does not account for the various validator stats, such as commission rate, voting power and missed blocks (see (Smart Stake)[https://osmosis.smartstake.io/])
+	4. As the size of validators have increased multiple times, clustering might reflect newer vs older validators
+	5. It's just a fun project for me, don't take it too seriously :D 
+	""")
+
+
+with st.expander('Preview of data'):
 	display_df = df.replace({1.0: 'YES', 2.0: 'ABSTAIN', 3.0: 'NO', 4.0:'NO WITH VETO', 0: 'DID NOT VOTE'})
 	display_df = display_df.set_index(['LABEL','VOTER'])
 	st.dataframe(display_df)
@@ -209,7 +224,11 @@ with st.container():
 	st.plotly_chart(fig, use_container_width=True)
 
 with st.container():
-	st.header("K-means grouping of validators")
+	st.header("Clustering of validators")
+	st.markdown("""## Methodology:
+	1. Voting data is dimensionaly reduced using *Principal COmoponent Analysis* (PCA).
+	2. PCA-ed data is clustered using *K-means clustering* algorithm, using `number of target cluster` of 4
+	""")
 	options = st.multiselect(label = 'Select a validator/validators you would like to focus', options = df['LABEL'], default=[])
 
 	pca_fig = go.Figure().update_xaxes(showgrid=False,showticklabels=False,zeroline=False).update_yaxes(showgrid=False,showticklabels=False,zeroline=False).update_layout(title='"Clustering" of validators based on voting activity')
@@ -220,8 +239,12 @@ with st.container():
 	st.plotly_chart(pca_fig, use_container_width=True)
 
 with st.container():
-	st.header("Keywords from Clusters")
-	st.markdown("Phrases are extracted using KeyBERT algorithm")
+	st.header("Keywords from each Clusters")
+	st.markdown("""## Methodology:
+	1. Top 20 Proposal (with highest number of same votes) of each type of vote (`YES`, `NO`, `NO WITH VETO`) are selected
+	2. The proposal descriptions are retreived from Osmosis LCD, URLs in the description are removed.
+	3. Proposals description from each category and cluster is concatenated and keywords/phrases are extracted using `KeyBERT` algorithm, with `KeyphraseVectorizers()` and  `Maximal Margin Relevance`
+	""")
 	with st.expander("Cluster 0"):
 		y_df = pd.DataFrame(yes, columns=['phrase', 'relevance'])
 		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
