@@ -12,6 +12,10 @@ from sklearn.decomposition import PCA
 import plotly.express as px
 import plotly.graph_objects as go
 
+
+
+st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
+
 API_KEY = st.secrets["api_keys"]
 
 SQL_QUERY1 = """
@@ -159,7 +163,7 @@ def keyword_data():
 st.title('Attempt to classify Osmosis validators based on voting activity')
 st.markdown('```If you get a 504 error, reload the page```')
 st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
-with st.spinner(text="Querying data from Flipside SDK"):
+with st.spinner(text="Querying data from Flipside Shroom SDK"):
 	res = quer(SQL_QUERY1)
 
 test=[] 
@@ -199,6 +203,7 @@ with st.container():
 
 
 with st.expander('Preview of data'):
+	st.markdown("Data is provided by Flipside Crypto's [Shroom SDK](https://sdk.flipsidecrypto.xyz/shroomdk).")
 	display_df = df.replace({1.0: 'YES', 2.0: 'ABSTAIN', 3.0: 'NO', 4.0:'NO WITH VETO', 0: 'DID NOT VOTE'})
 	display_df = display_df.set_index(['LABEL','VOTER'])
 	st.dataframe(display_df)
@@ -249,44 +254,44 @@ with st.container():
 	""")
 	with st.expander("Cluster 0"):
 		y_df = pd.DataFrame(yes, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposals")
 		st.plotly_chart(y_fig, use_container_width=True)
 		n_df = pd.DataFrame(no, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposals")
 		st.plotly_chart(n_fig, use_container_width=True)
 		nw_df = pd.DataFrame(no_with_veto, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposals")
 		st.plotly_chart(nw_fig, use_container_width=True)
 
 	with st.expander("Cluster 1"):
 		y_df = pd.DataFrame(yes1, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposals")
 		st.plotly_chart(y_fig, use_container_width=True)
 		n_df = pd.DataFrame(no1, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposals")
 		st.plotly_chart(n_fig, use_container_width=True)
 		nw_df = pd.DataFrame(no_with_veto1, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposals")
 		st.plotly_chart(nw_fig, use_container_width=True)
 
 	with st.expander("Cluster 2"):
 		y_df = pd.DataFrame(yes2, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposals")
 		st.plotly_chart(y_fig, use_container_width=True)
 		n_df = pd.DataFrame(no2, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposals")
 		st.plotly_chart(n_fig, use_container_width=True)
 		nw_df = pd.DataFrame(no_with_veto2, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposals")
 		st.plotly_chart(nw_fig, use_container_width=True)
 
 	with st.expander("Cluster 3"):
 		y_df = pd.DataFrame(yes3, columns=['phrase', 'relevance'])
-		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposal")
+		y_fig = px.bar(y_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from yes-voted proposals")
 		st.plotly_chart(y_fig, use_container_width=True)
 		n_df = pd.DataFrame(no3, columns=['phrase', 'relevance'])
-		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposal")
+		n_fig = px.bar(n_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-voted proposals")
 		st.plotly_chart(n_fig, use_container_width=True)
 		nw_df = pd.DataFrame(no_with_veto3, columns=['phrase', 'relevance'])
-		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposal")
+		nw_fig = px.bar(nw_df, x="relevance", y="phrase", orientation='h', title="Keywords/phrases from no-with veto-voted proposals")
 		st.plotly_chart(nw_fig, use_container_width=True)
