@@ -192,7 +192,7 @@ with st.container():
 	st.markdown("""
 	1. Osmosis proposals are not usually polarized (for a reference of polarized proposals, see Cosmos Hub), hence *politics* might not be observable onchain?
 	2. A large percentage of proposal description includes URL to the complete proposals are removed, due to difficulty of parsing each and every type of website, document.
-	3. This dashboard does not account for the various validator stats, such as commission rate, voting power and missed blocks (see (Smart Stake)[https://osmosis.smartstake.io/])
+	3. This dashboard does not account for the various validator stats, such as commission rate, voting power and missed blocks (see [Smart Stake](https://osmosis.smartstake.io/))
 	4. As the size of validators have increased multiple times, clustering might reflect newer vs older validators
 	5. It's just a fun project for me, don't take it too seriously :D 
 	""")
@@ -225,7 +225,8 @@ with st.container():
 
 with st.container():
 	st.header("Clustering of validators")
-	st.markdown("""## Methodology:
+	st.markdown("""
+	### Methodology:
 	1. Voting data is dimensionaly reduced using *Principal COmoponent Analysis* (PCA).
 	2. PCA-ed data is clustered using *K-means clustering* algorithm, using `number of target cluster` of 4
 	""")
@@ -240,7 +241,8 @@ with st.container():
 
 with st.container():
 	st.header("Keywords from each Clusters")
-	st.markdown("""## Methodology:
+	st.markdown("""
+	### Methodology:
 	1. Top 20 Proposal (with highest number of same votes) of each type of vote (`YES`, `NO`, `NO WITH VETO`) are selected
 	2. The proposal descriptions are retreived from Osmosis LCD, URLs in the description are removed.
 	3. Proposals description from each category and cluster is concatenated and keywords/phrases are extracted using `KeyBERT` algorithm, with `KeyphraseVectorizers()` and  `Maximal Margin Relevance`
