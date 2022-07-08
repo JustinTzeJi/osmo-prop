@@ -243,6 +243,28 @@ with st.container():
 		selectedpoints = df[y_km==x].reset_index(drop=True).index[df['LABEL'][y_km==x].reset_index(drop=True).isin(options)].tolist()
 		pca_fig.add_trace(go.Scatter(x=Xt[y_km==x, 0], y=Xt[y_km==x, 1], selectedpoints=selectedpoints, name='Cluster '+str(x), mode='markers', hovertemplate=df['LABEL'][y_km==x], selected_marker_color = 'yellow', selected_marker_size=10))
 	st.plotly_chart(pca_fig, use_container_width=True)
+	
+	st.markdown("""
+	### Understanding the axes:
+	Each axis consist of voting results from all proposals but condensed in a way that each of the proposals will have different weights depending on the variance of voting results of the proposal.
+	By figuring out the variance of each proposal in each axis, we can conclude the proposals that has most influnce on the clustering of validators. 
+	""")
+	with st.container():
+		st.markdown("#### Top 10 Proposals for X-axis:")
+		s = ''
+		t = 1
+		for i in pd.DataFrame(np.abs(pca.components_[0])).nlargest(10,0,'all').reset_index(inplace=False)['index'].to_list():
+			s += str(t)+". Prop " + str(i) + " \n"
+			t += 1
+		st.markdown(s)
+	with st.container():
+		st.markdown("#### Top 10 Proposals for Y-axis:")
+		s = ''
+		t = 1
+		for i in pd.DataFrame(np.abs(pca.components_[1])).nlargest(10,0,'all').reset_index(inplace=False)['index'].to_list():
+			s += str(t)+". Prop " + str(i) + " \n"
+			t += 1
+		st.markdown(s)
 
 with st.container():
 	st.header("Keywords from each Clusters")
