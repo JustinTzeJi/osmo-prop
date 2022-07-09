@@ -16,8 +16,8 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
 
-API_KEY = st.secrets["api_keys"]
-
+# API_KEY = st.secrets["api_keys"]
+API_KEY ="0949c069-8fc1-40fa-849e-bb68fa9e8eb7"
 SQL_QUERY1 = """
 with b as (SELECT voter, proposal_id, vote_option
 FROM osmosis.core.fact_governance_votes
@@ -49,7 +49,7 @@ WHERE tx_status = 'SUCCEEDED')
 """
 TTL_MINUTES = 15
 
-def create_query(SQL_QUERY):
+def create_query(SQL_QUERY): ## posts a flipside query to flipside sdk
     r = requests.post(
         'https://node-api.flipsidecrypto.com/queries', 
         data=json.dumps({
@@ -63,7 +63,7 @@ def create_query(SQL_QUERY):
     
     return json.loads(r.text)
     
-def get_query_results(token):
+def get_query_results(token): ##retrieves query results from flipside sdk
     r = requests.get(
         'https://node-api.flipsidecrypto.com/queries/' + token, 
         headers={"Accept": "application/json", "Content-Type": "application/json", "x-api-key": API_KEY}
@@ -77,27 +77,26 @@ def get_query_results(token):
         return get_query_results(token)
         
     return data
-def run(SQL_QUERY):
+def run(SQL_QUERY): ##generates a pivot query that aggregates all proposal id
     query = create_query(SQL_QUERY)
     token = query.get('token')
     data = get_query_results(token)
     return data
 
 @st.experimental_memo
-def quer(SQL_QUERY):
+def quer(SQL_QUERY): ##generates the final dataframe of validators and voting results on each prop
     pivot = run(SQL_QUERY)
-    query = create_query(PIVOT_QUERY+pivot['results'][0][0])
+    query = create_query(PIVOT_QUERY+pivot['results'][0][0]) # concats the final query header and the pivot query generated
     token2 = query.get('token')
     data = get_query_results(token2)
     return data
 
-def ext_key(doc):
+def ext_key(doc): ## using KeyBERT model to retreive key phrases/words, input string, output list of tuples of the result
   kw_model = KeyBERT()
   keywords = kw_model.extract_keywords(doc, vectorizer=KeyphraseCountVectorizer(stop_words='english'), use_mmr=True)
   return keywords  
-# keywords = kw_model.extract_keywords(doc)
 
-def get_prop_desc(id):
+def get_prop_desc(id): #retrieves proposal description useing proposal id through Osmosis RPC
     r = requests.get(
         'https://osmosis.stakesystems.io/cosmos/gov/v1beta1/proposals/' + str(id), 
         headers={"Accept": "application/json", "Content-Type": "application/json"}
@@ -107,29 +106,29 @@ def get_prop_desc(id):
     
     data = json.loads(r.text)
 
-    return pd.Series([data['proposal']['content']['description'], data['proposal']['content']['@type']])
+    return pd.Series([data['proposal']['content']['description'], data['proposal']['content']['@type']]) ## only selecting the proposal descripton and proposal type
 
-def cluster_df(cluster_num):
+def cluster_df(cluster_num): ##generate counts of each type of vote for each proposal for the selected cluster
   cluster_0 = df[df['cluster']==cluster_num]
   cluster_0_res = cluster_0.apply(lambda x: x.value_counts()).T.stack().drop(labels=['VOTER','LABEL','cluster']).to_frame().reset_index()
   return cluster_0_res
 
-def get_keywords(cluster_df):
+def get_keywords(cluster_df): ## get keywords from top 20 propsal that were voted yes, no, no with veto separately
   import re
-  yeslist = cluster_df[cluster_df['level_1']==1].sort_values(0, ascending = False).head(n=20)['level_0'].to_list()
-  yesprop = re.sub(r"\S*https?:\S*", "",''.join(str(x) for x in prop_desc[prop_desc['id'].isin(yeslist)]['desc'].to_list())).strip().replace('\\n',' ')
+  yeslist = cluster_df[cluster_df['level_1']==1].sort_values(0, ascending = False).head(n=20)['level_0'].to_list() #select top 20 proposals, based on frequency of yes vote
+  yesprop = re.sub(r"\S*https?:\S*", "",''.join(str(x) for x in prop_desc[prop_desc['id'].isin(yeslist)]['desc'].to_list())).strip().replace('\\n',' ')#remove URL and concat prop description into list
   key_yes= ext_key(yesprop)
 
-  nolist = cluster_df[cluster_df['level_1']==3].sort_values(0, ascending = False).head(n=20)['level_0'].to_list()
+  nolist = cluster_df[cluster_df['level_1']==3].sort_values(0, ascending = False).head(n=20)['level_0'].to_list() #select top 20 proposals, based on frequency of no vote
   noprop = re.sub(r"\S*https?:\S*", "", ''.join(str(x) for x in prop_desc[prop_desc['id'].isin(nolist)]['desc'].to_list())).strip().replace('\\n',' ')
   key_no= ext_key(noprop)
 
-  nowvetolist = cluster_df[cluster_df['level_1']==4].sort_values(0, ascending = False).head(n=20)['level_0'].to_list()
+  nowvetolist = cluster_df[cluster_df['level_1']==4].sort_values(0, ascending = False).head(n=20)['level_0'].to_list() #select top 20 proposals, based on frequency of no with veto vote
   nowvprop = re.sub(r"\S*https?:\S*", "", ''.join(str(x) for x in prop_desc[prop_desc['id'].isin(nowvetolist)]['desc'].to_list())).strip().replace('\\n',' ')
   key_nowv= ext_key(nowvprop)
   return key_yes, key_no, key_nowv
 
-def discrete_colorscale(bvals, colors):
+def discrete_colorscale(bvals, colors): #for the legend of validator activity heatmap
     """
     bvals - list of values bounding intervals/ranges of interest
     colors - list of rgb or hex colorcodes for values in [bvals[k], bvals[k+1]],0<=k < len(bvals)-1
@@ -146,14 +145,14 @@ def discrete_colorscale(bvals, colors):
     return dcolorscale    
 
 @st.experimental_memo
-def prop_descr():
+def prop_descr(): #generate df of proposal description and type 
 	prop_desc = pd.DataFrame(columns=['id','type','desc'])
 	prop_desc['id'] = df.columns.values[:-3].tolist()
 	prop_desc[['desc','type']] = prop_desc.apply(lambda x: get_prop_desc(x['id']), axis=1)
 	return prop_desc
 
 @st.experimental_memo
-def keyword_data():
+def keyword_data(): #retrieve keywords for each cluster
 	yes, no, no_with_veto = get_keywords(cluster_df(0))
 	yes1, no1, no_with_veto1 = get_keywords(cluster_df(1))
 	yes2, no2, no_with_veto2 = get_keywords(cluster_df(2))
@@ -244,25 +243,154 @@ with st.container():
 		pca_fig.add_trace(go.Scatter(x=Xt[y_km==x, 0], y=Xt[y_km==x, 1], selectedpoints=selectedpoints, name='Cluster '+str(x), mode='markers', hovertemplate=df['LABEL'][y_km==x], selected_marker_color = 'yellow', selected_marker_size=10))
 	st.plotly_chart(pca_fig, use_container_width=True)
 	
+	with st.expander("Validators in each cluster"):	
+		cluster1, cluster2, cluster3, cluster4 = st.columns(4)
+		cluster1.dataframe(df[df['cluster']==0].reset_index().rename(mapper={'LABEL':'Validators in Cluster 0'}, axis='columns')['Validators in Cluster 0'])
+		cluster2.dataframe(df[df['cluster']==1].reset_index().rename(mapper={'LABEL':'Validators in Cluster 1'}, axis='columns')['Validators in Cluster 1'])
+		cluster3.dataframe(df[df['cluster']==2].reset_index().rename(mapper={'LABEL':'Validators in Cluster 2'}, axis='columns')['Validators in Cluster 2'])
+		cluster4.dataframe(df[df['cluster']==3].reset_index().rename(mapper={'LABEL':'Validators in Cluster 3'}, axis='columns')['Validators in Cluster 3'])
+
 	st.markdown("""
 	### Understanding the axes:
 	Each axis consist of voting results from all proposals but condensed in a way that each of the proposals will have different weights depending on the variance of voting results of the proposal.
 	By figuring out the variance of each proposal in each axis, we can conclude the proposals that has most influnce on the clustering of validators. 
 	""")
 	with st.expander("Top 10 Proposals for X-axis:"):
+		xtop10 = pd.DataFrame(np.abs(pca.components_[0]))
+		xtop10['prop'] = pd.DataFrame(df.columns[:-3])
+		xtop10 = xtop10.nlargest(10,0,'all')
 		s = ''
 		t = 1
-		for i in pd.DataFrame(np.abs(pca.components_[0])).nlargest(10,0,'all').reset_index(inplace=False)['index'].to_list():
+		for i in xtop10['prop'].to_list():
 			s += str(t)+". Prop " + str(i) + " \n"
 			t += 1
 		st.markdown(s)
+		col1, col2, col3, col4, col5 = st.columns(5)
+		col6, col7, col8, col9, col10 = st.columns(5)
+		dict1 = {1: col1, 2: col2, 3: col3, 4:col4,5:col5,6:col6,7:col7,8:col8,9:col9,10:col10}
+		aaa = display_df.reset_index()
+		aaa['cluster']=pd.Series(y_km)
+		t=1
+		for i in xtop10['prop'].to_list():
+			tester = aaa.groupby('cluster')[i].value_counts()
+			tester = tester.to_frame('counts').reset_index()
+			fig = go.Figure()
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='YES']['cluster'].astype(str),
+				x=tester[tester[i]=='YES']["counts"],
+				name='YES',
+				orientation='h',
+				marker=dict(
+					color='green',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='NO']['cluster'].astype(str),
+				x=tester[tester[i]=='NO']["counts"],
+				name='NO',
+				orientation='h',
+				marker=dict(
+					color='orange',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='NO WITH VETO']['cluster'].astype(str),
+				x=tester[tester[i]=='NO WITH VETO']["counts"],
+				name='NO WITH VETO',
+				orientation='h',
+				marker=dict(
+					color='red',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='ABSTAIN']['cluster'].astype(str),
+				x=tester[tester[i]=='ABSTAIN']["counts"],
+				name='ABSTAIN',
+				orientation='h',
+				marker=dict(
+					color='lightgrey',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='DID NOT VOTE']['cluster'].astype(str),
+				x=tester[tester[i]=='DID NOT VOTE']["counts"],
+				name='DID NOT VOTE',
+				orientation='h',
+				marker=dict(
+					color='black',
+				)
+			))		
+			fig.update_layout(barmode='stack',title='Voting statistics of each cluster on Prop %d'%i,titlefont=dict(size=14),height = 300)
+			dict1[t].plotly_chart(fig, use_container_width=True)
+			t+=1
 	with st.expander("Top 10 Proposals for Y-axis:"):
+		ytop10 = pd.DataFrame(np.abs(pca.components_[1]))
+		ytop10['prop'] = pd.DataFrame(df.columns[:-3])
+		ytop10 = ytop10.nlargest(10,0,'all')
 		s = ''
 		t = 1
-		for i in pd.DataFrame(np.abs(pca.components_[1])).nlargest(10,0,'all').reset_index(inplace=False)['index'].to_list():
+		for i in ytop10['prop'].to_list():
 			s += str(t)+". Prop " + str(i) + " \n"
 			t += 1
 		st.markdown(s)
+		col11, col12, col13, col14, col15 = st.columns(5)
+		col16, col17, col18, col19, col20 = st.columns(5)
+		dict1 = {11: col11, 12: col12, 13: col13, 14:col14,15:col15,16:col16,17:col17,18:col18,19:col19,20:col20}
+		aaa = display_df.reset_index()
+		aaa['cluster']=pd.Series(y_km)
+		for i in xtop10['prop'].to_list():
+			tester = aaa.groupby('cluster')[i].value_counts()
+			tester = tester.to_frame('counts').reset_index()
+			print(tester)
+			fig = go.Figure()
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='YES']['cluster'].astype(str),
+				x=tester[tester[i]=='YES']["counts"],
+				name='YES',
+				orientation='h',
+				marker=dict(
+					color='green',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='NO']['cluster'].astype(str),
+				x=tester[tester[i]=='NO']["counts"],
+				name='NO',
+				orientation='h',
+				marker=dict(
+					color='orange',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='NO WITH VETO']['cluster'].astype(str),
+				x=tester[tester[i]=='NO WITH VETO']["counts"],
+				name='NO WITH VETO',
+				orientation='h',
+				marker=dict(
+					color='red',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='ABSTAIN']['cluster'].astype(str),
+				x=tester[tester[i]=='ABSTAIN']["counts"],
+				name='ABSTAIN',
+				orientation='h',
+				marker=dict(
+					color='lightgrey',
+				)
+			))
+			fig.add_trace(go.Bar(
+				y=tester[tester[i]=='DID NOT VOTE']['cluster'].astype(str),
+				x=tester[tester[i]=='DID NOT VOTE']["counts"],
+				name='DID NOT VOTE',
+				orientation='h',
+				marker=dict(
+					color='black',
+				)
+			))		
+			fig.update_layout(barmode='stack',title='Voting statistics of each cluster on Prop %d'%i,titlefont=dict(size=14), height = 300)
+			dict1[t].plotly_chart(fig, use_container_width=True,)
+			t+=1
 
 with st.container():
 	st.header("Keywords from each Clusters")
