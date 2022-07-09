@@ -16,8 +16,8 @@ import plotly.graph_objects as go
 
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
 
-# API_KEY = st.secrets["api_keys"]
-API_KEY ="0949c069-8fc1-40fa-849e-bb68fa9e8eb7"
+API_KEY = st.secrets["api_keys"]
+
 SQL_QUERY1 = """
 with b as (SELECT voter, proposal_id, vote_option
 FROM osmosis.core.fact_governance_votes
