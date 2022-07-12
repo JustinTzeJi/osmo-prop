@@ -17,7 +17,6 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
 
 API_KEY = st.secrets["api_keys"]
-
 SQL_QUERY1 = """
 with b as (SELECT voter, proposal_id, vote_option
 FROM osmosis.core.fact_governance_votes
@@ -160,6 +159,11 @@ def keyword_data(): #retrieve keywords for each cluster
 	return yes, no, no_with_veto, yes1, no1, no_with_veto1, yes2, no2, no_with_veto2, yes3, no3, no_with_veto3
 
 st.title('Attempt to classify Osmosis validators based on voting activity')
+'''
+    [![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
+
+'''
+st.markdown("<br>",unsafe_allow_html=True)
 st.markdown('```If you get a 504 error, reload the page```')
 st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
 with st.spinner(text="Querying data from Flipside Shroom SDK"):
