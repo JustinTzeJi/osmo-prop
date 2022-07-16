@@ -345,7 +345,6 @@ with st.container():
 		for i in xtop10['prop'].to_list():
 			tester = aaa.groupby('cluster')[i].value_counts()
 			tester = tester.to_frame('counts').reset_index()
-			print(tester)
 			fig = go.Figure()
 			fig.add_trace(go.Bar(
 				y=tester[tester[i]=='YES']['cluster'].astype(str),
