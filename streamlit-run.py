@@ -17,6 +17,115 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
 
 API_KEY = st.secrets["api_keys"]
+SQL_DAILY_STAKING = """
+	-- superfluid staking amount are excluded
+	with 
+	validators as (
+		select address, label_subtype as role, label
+		from osmosis.core.dim_labels
+		where label_subtype = 'validator'
+	),
+	create_validator as (
+		select block_timestamp, tx_id, action, iff(regexp_like(amount, '.+uosmo$') = 'TRUE', split_part(amount, 'uosmo', 1), amount) as amount,
+		validator_address
+		from (
+			select distinct
+			block_timestamp, 
+			tx_id,
+			'delegate' as action,
+			max(iff(msg_type = 'create_validator' and attribute_key = 'amount', attribute_value, null)) as amount,
+			max(iff(msg_type = 'create_validator' and attribute_key = 'validator', attribute_value, null)) as validator_address
+			-- max(iff(msg_type = 'tx', split_part(attribute_value, '/', 1), null)) as creator
+			from osmosis.core.fact_msg_attributes 
+			where 0=0
+			and ((msg_type = 'create_validator' and attribute_key in ('amount', 'validator')) or (msg_type = 'tx' and attribute_key = 'acc_seq')) 
+			and tx_id in (select distinct tx_id from osmosis.core.fact_msg_attributes where msg_type = 'create_validator')
+			group by 1,2
+		)  order by block_timestamp asc, tx_id
+	),
+	create_n_staking as (
+		-- self-bonded
+		select 
+		cv.block_timestamp,
+		cv.tx_id,
+		'delegate' as action,
+		cv.amount,
+		cv.validator_address,
+		vld.label as validator_name
+		from create_validator cv 
+		left join validators vld on (vld.address = cv.validator_address)
+		union all 
+		-- normal staking
+		select 
+		fs.block_timestamp,
+		fs.tx_id,
+		fs.action,
+		case
+			when fs.action in ('delegate', 'redelegate') and fs.validator_address = vld.address then amount
+			when fs.action = 'redelegate' and fs.redelegate_source_validator_address = vld.address then amount*-1
+			when fs.action = 'undelegate' and fs.validator_address = vld.address then amount*-1
+		end as amount,
+		vld.address as validator_address,
+		vld.label as validator_name
+		from osmosis.core.fact_staking fs
+		left join validators vld on (vld.address = fs.validator_address or vld.address = fs.redelegate_source_validator_address)
+	),
+	normal_staking as (
+		select date(block_timestamp) as date, first_tx_timestamp, last_tx_timestamp, validator_address, validator_name, sum(amount) as real_amount
+		from (
+		select 
+			*,
+			min(block_timestamp) over (partition by validator_address) as first_tx_timestamp,
+			max(block_timestamp) over (partition by validator_address) as last_tx_timestamp
+		from create_n_staking
+		) group by 1,2,3,4,5
+	),
+	-- Generate every day + validator info table
+	partition_ranges as (
+		select 
+		validator_address,
+		validator_name,
+		first_tx_timestamp,
+		last_tx_timestamp,
+		datediff('days', first_tx_timestamp, current_date) as span
+		from normal_staking
+	), 
+	huge_range as (
+		select row_number() over(order by true)-1 as rn
+		from table(generator(rowcount => 10000000))
+	), 
+	in_fill as (
+		select distinct 
+			dateadd('day', hr.rn, pr.first_tx_timestamp) as date,
+			pr.validator_address,
+			pr.validator_name
+		from partition_ranges as pr
+		join huge_range as hr on pr.span >= hr.rn
+	),
+	--------------
+	daily_staking_balance as (
+		select 
+		date,
+		nvl(last_tx_timestamp, lag(last_tx_timestamp) ignore nulls over (partition by validator_address order by date asc)) as last_tx_timestamp,
+		validator_address,
+		validator_name,
+		amount/pow(10,6) as amount,
+		sum(amount/pow(10,6)) over (partition by validator_name order by date asc) as daily_delegated_amount -- cumulative daily delegated amount
+		from (
+			select a.date, ns.last_tx_timestamp, a.validator_address, a.validator_name, nvl(ns.real_amount,0) as amount
+			from in_fill a
+			left join normal_staking ns on (date(a.date) = ns.date and a.validator_address = ns.validator_address)
+			)
+	)
+	select '
+	select 
+	*
+	from daily_staking_balance 
+	where 0=0
+	-- and validator_address = 'osmovaloper1s0lankh33kprer2l22nank5rvsuh9ksavlsh86'
+	order by validator_address, date asc' 
+	from daily_staking_balance;
+"""
 SQL_QUERY1 = """
 with b as (SELECT voter, proposal_id, vote_option
 FROM osmosis.core.fact_governance_votes
