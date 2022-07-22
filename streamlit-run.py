@@ -17,114 +17,118 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
 
 API_KEY = st.secrets["api_keys"]
+
 SQL_DAILY_STAKING = """
 	-- superfluid staking amount are excluded
-	with 
-	validators as (
-		select address, label_subtype as role, label
-		from osmosis.core.dim_labels
-		where label_subtype = 'validator'
-	),
-	create_validator as (
-		select block_timestamp, tx_id, action, iff(regexp_like(amount, '.+uosmo$') = 'TRUE', split_part(amount, 'uosmo', 1), amount) as amount,
-		validator_address
-		from (
-			select distinct
-			block_timestamp, 
-			tx_id,
-			'delegate' as action,
-			max(iff(msg_type = 'create_validator' and attribute_key = 'amount', attribute_value, null)) as amount,
-			max(iff(msg_type = 'create_validator' and attribute_key = 'validator', attribute_value, null)) as validator_address
-			-- max(iff(msg_type = 'tx', split_part(attribute_value, '/', 1), null)) as creator
-			from osmosis.core.fact_msg_attributes 
-			where 0=0
-			and ((msg_type = 'create_validator' and attribute_key in ('amount', 'validator')) or (msg_type = 'tx' and attribute_key = 'acc_seq')) 
-			and tx_id in (select distinct tx_id from osmosis.core.fact_msg_attributes where msg_type = 'create_validator')
-			group by 1,2
-		)  order by block_timestamp asc, tx_id
-	),
-	create_n_staking as (
-		-- self-bonded
-		select 
-		cv.block_timestamp,
-		cv.tx_id,
-		'delegate' as action,
-		cv.amount,
-		cv.validator_address,
-		vld.label as validator_name
-		from create_validator cv 
-		left join validators vld on (vld.address = cv.validator_address)
-		union all 
-		-- normal staking
-		select 
-		fs.block_timestamp,
-		fs.tx_id,
-		fs.action,
-		case
-			when fs.action in ('delegate', 'redelegate') and fs.validator_address = vld.address then amount
-			when fs.action = 'redelegate' and fs.redelegate_source_validator_address = vld.address then amount*-1
-			when fs.action = 'undelegate' and fs.validator_address = vld.address then amount*-1
-		end as amount,
-		vld.address as validator_address,
-		vld.label as validator_name
-		from osmosis.core.fact_staking fs
-		left join validators vld on (vld.address = fs.validator_address or vld.address = fs.redelegate_source_validator_address)
-	),
-	normal_staking as (
-		select date(block_timestamp) as date, first_tx_timestamp, last_tx_timestamp, validator_address, validator_name, sum(amount) as real_amount
-		from (
-		select 
-			*,
-			min(block_timestamp) over (partition by validator_address) as first_tx_timestamp,
-			max(block_timestamp) over (partition by validator_address) as last_tx_timestamp
-		from create_n_staking
-		) group by 1,2,3,4,5
-	),
-	-- Generate every day + validator info table
-	partition_ranges as (
-		select 
-		validator_address,
-		validator_name,
-		first_tx_timestamp,
-		last_tx_timestamp,
-		datediff('days', first_tx_timestamp, current_date) as span
-		from normal_staking
-	), 
-	huge_range as (
-		select row_number() over(order by true)-1 as rn
-		from table(generator(rowcount => 10000000))
-	), 
-	in_fill as (
-		select distinct 
-			dateadd('day', hr.rn, pr.first_tx_timestamp) as date,
-			pr.validator_address,
-			pr.validator_name
-		from partition_ranges as pr
-		join huge_range as hr on pr.span >= hr.rn
-	),
-	--------------
-	daily_staking_balance as (
-		select 
-		date,
-		nvl(last_tx_timestamp, lag(last_tx_timestamp) ignore nulls over (partition by validator_address order by date asc)) as last_tx_timestamp,
-		validator_address,
-		validator_name,
-		amount/pow(10,6) as amount,
-		sum(amount/pow(10,6)) over (partition by validator_name order by date asc) as daily_delegated_amount -- cumulative daily delegated amount
-		from (
-			select a.date, ns.last_tx_timestamp, a.validator_address, a.validator_name, nvl(ns.real_amount,0) as amount
-			from in_fill a
-			left join normal_staking ns on (date(a.date) = ns.date and a.validator_address = ns.validator_address)
-			)
-	)
-	select '
-	select 
-	*
+with 
+  validators as (
+    select address, label_subtype as role, label
+    from osmosis.core.dim_labels
+    where label_subtype = 'validator'
+  ),
+  create_validator as (
+    select block_timestamp, tx_id, action, iff(regexp_like(amount, '.+uosmo$') = 'TRUE', split_part(amount, 'uosmo', 1), amount) as amount,
+      validator_address
+    from (
+        select distinct
+          block_timestamp, 
+          tx_id,
+          'delegate' as action,
+          max(iff(msg_type = 'create_validator' and attribute_key = 'amount', attribute_value, null)) as amount,
+          max(iff(msg_type = 'create_validator' and attribute_key = 'validator', attribute_value, null)) as validator_address
+          -- max(iff(msg_type = 'tx', split_part(attribute_value, '/', 1), null)) as creator
+        from osmosis.core.fact_msg_attributes 
+        where 0=0
+          and ((msg_type = 'create_validator' and attribute_key in ('amount', 'validator')) or (msg_type = 'tx' and attribute_key = 'acc_seq')) 
+          and tx_id in (select distinct tx_id from osmosis.core.fact_msg_attributes where msg_type = 'create_validator')
+        group by 1,2
+      )  order by block_timestamp asc, tx_id
+  ),
+  create_n_staking as (
+  	-- self-bonded
+    select 
+      cv.block_timestamp,
+      cv.tx_id,
+      'delegate' as action,
+      cv.amount,
+      cv.validator_address,
+      vld.label as validator_name
+    from create_validator cv 
+      left join validators vld on (vld.address = cv.validator_address)
+    union all 
+  	-- normal staking
+    select 
+      fs.block_timestamp,
+      fs.tx_id,
+      fs.action,
+      case
+        when fs.action in ('delegate', 'redelegate') and fs.validator_address = vld.address then amount
+        when fs.action = 'redelegate' and fs.redelegate_source_validator_address = vld.address then amount*-1
+        when fs.action = 'undelegate' and fs.validator_address = vld.address then amount*-1
+      end as amount,
+      vld.address as validator_address,
+      vld.label as validator_name
+    from osmosis.core.fact_staking fs
+      left join validators vld on (vld.address = fs.validator_address or vld.address = fs.redelegate_source_validator_address)
+  ),
+  normal_staking as (
+    select date(block_timestamp) as date, first_tx_timestamp, last_tx_timestamp, validator_address, validator_name, sum(amount) as real_amount
+    from (
+      select 
+        *,
+        min(block_timestamp) over (partition by validator_address) as first_tx_timestamp,
+        max(block_timestamp) over (partition by validator_address) as last_tx_timestamp
+      from create_n_staking
+    ) group by 1,2,3,4,5
+  ),
+-- Generate every day + validator info table
+  partition_ranges as (
+    select 
+      validator_address,
+      validator_name,
+      first_tx_timestamp,
+      last_tx_timestamp,
+      datediff('days', first_tx_timestamp, current_date) as span
+    from normal_staking
+  ), 
+  huge_range as (
+      select row_number() over(order by true)-1 as rn
+      from table(generator(rowcount => 10000000))
+  ), 
+  in_fill as (
+      select distinct 
+        dateadd('day', hr.rn, pr.first_tx_timestamp) as date,
+        pr.validator_address,
+        pr.validator_name
+      from partition_ranges as pr
+      join huge_range as hr on pr.span >= hr.rn
+  ),
+--------------
+  daily_staking_balance as (
+    select 
+      date_trunc('DAY', date) as date,
+      nvl(last_tx_timestamp, lag(last_tx_timestamp) ignore nulls over (partition by validator_address order by date asc)) as last_tx_timestamp,
+      validator_address,
+      validator_name,
+      amount/pow(10,6) as amount,
+      sum(amount/pow(10,6)) over (partition by validator_name order by date asc) as daily_delegated_amount -- cumulative daily delegated amount
+    from (
+        select a.date, ns.last_tx_timestamp, a.validator_address, a.validator_name, nvl(ns.real_amount,0) as amount
+        from in_fill a
+          left join normal_staking ns on (date(a.date) = ns.date and a.validator_address = ns.validator_address)
+        )
+  ),
+  total_staked as (
+  	SELECT date, sum(daily_delegated_amount) as total_daily_staked
 	from daily_staking_balance 
-	where 0=0
-	-- and validator_address = 'osmovaloper1s0lankh33kprer2l22nank5rvsuh9ksavlsh86'
-	order by validator_address, date asc' 
-	from daily_staking_balance;
+  	group by 1
+  )
+
+select ds.date, validator_name, validator_address, daily_delegated_amount, ts.total_daily_staked, daily_delegated_amount/ts.total_daily_staked*100 as voting_power
+FROM daily_staking_balance ds LEFT JOIN total_staked ts
+  ON ds.date = ts.date
+order by date desc
+
 """
 SQL_QUERY1 = """
 with b as (SELECT voter, proposal_id, vote_option
@@ -141,11 +145,11 @@ from b;
 """
 
 PIVOT_QUERY = """
-with a as (SELECT raw_metadata[0]:account_address as address, label
+with a as (SELECT address as node, raw_metadata[0]:account_address as address, label
 FROM osmosis.core.dim_labels
 WHERE label_subtype = 'validator'),
 
-b as (SELECT voter, a.label, proposal_id, vote_option
+b as (SELECT voter, node, a.label, proposal_id, vote_option
 FROM osmosis.core.fact_governance_votes b inner join a on b.voter = a.address
 WHERE tx_status = 'SUCCEEDED')
 
@@ -255,7 +259,7 @@ def discrete_colorscale(bvals, colors): #for the legend of validator activity he
 @st.experimental_memo
 def prop_descr(): #generate df of proposal description and type 
 	prop_desc = pd.DataFrame(columns=['id','type','desc'])
-	prop_desc['id'] = df.columns.values[:-3].tolist()
+	prop_desc['id'] = df.columns.values[:-4].tolist()
 	prop_desc[['desc','type']] = prop_desc.apply(lambda x: get_prop_desc(x['id']), axis=1)
 	return prop_desc
 
@@ -266,6 +270,14 @@ def keyword_data(): #retrieve keywords for each cluster
 	yes2, no2, no_with_veto2 = get_keywords(cluster_df(2))
 	yes3, no3, no_with_veto3 = get_keywords(cluster_df(3))
 	return yes, no, no_with_veto, yes1, no1, no_with_veto1, yes2, no2, no_with_veto2, yes3, no3, no_with_veto3
+
+@st.experimental_memo
+def daily_stake(): ##generates the final dataframe of validators and voting results on each prop
+	query = run(SQL_DAILY_STAKING)
+	column_labels=[] 
+	column_labels = query['columnLabels']
+	data = pd.DataFrame(data=query['results'],columns=column_labels)
+	return data
 
 st.title('Attempt to classify Osmosis validators based on voting activity')
 '''
@@ -278,12 +290,12 @@ st.markdown('```Querying data from Osmosis API and KeyBERT processing will take 
 with st.spinner(text="Querying data from Flipside Shroom SDK"):
 	res = quer(SQL_QUERY1)
 
-test=[] 
-test = sorted(list(map(int, res['columnLabels'][2::])))
-test.extend(res['columnLabels'][:2:])
-df = pd.DataFrame(data=res['results'],columns=test)
+column_labels=[] 
+column_labels = sorted(list(map(int, res['columnLabels'][3::])))
+column_labels.extend(res['columnLabels'][:3:])
+df = pd.DataFrame(data=res['results'],columns=column_labels)
 df = df.replace({nan: 0})
-X = df.drop(columns = ['VOTER','LABEL'])
+X = df.drop(columns = ['VOTER','LABEL', 'NODE'])
 pca = PCA()
 Xt = pca.fit_transform(X)
 km = KMeans(init="k-means++", n_clusters=4, n_init=4)
@@ -317,6 +329,7 @@ with st.container():
 with st.expander('Preview of data'):
 	st.markdown("Data is provided by Flipside Crypto's [Shroom SDK](https://sdk.flipsidecrypto.xyz/shroomdk).")
 	display_df = df.replace({1.0: 'YES', 2.0: 'ABSTAIN', 3.0: 'NO', 4.0:'NO WITH VETO', 0: 'DID NOT VOTE'})
+	display_df = display_df.drop(columns = ['NODE', 'cluster'])
 	display_df = display_df.set_index(['LABEL','VOTER'])
 	st.dataframe(display_df)
 
@@ -330,7 +343,7 @@ with st.container():
 	bvals = np.array(bvals)
 	tickvals = [0,1,2,3,4]
 	ticktext = ['DID NOT VOTE', 'YES', 'ABSTAIN', 'NO', 'NO WITH VETO']
-	heatmap = go.Heatmap(z=df.drop(columns = ['VOTER','cluster']).set_index('LABEL'), y=df['LABEL'].to_numpy(), 
+	heatmap = go.Heatmap(z=df.drop(columns = ['VOTER','cluster','NODE']).set_index('LABEL'), y=df['LABEL'].to_numpy(), 
 						colorscale = dcolorsc, 
 						customdata= display_df,
 						hovertemplate="<b>%{y} </b><br>" +  "Prop %{x}<br>" + "Vote: %{customdata} ", 
@@ -503,6 +516,21 @@ with st.container():
 			fig.update_layout(barmode='stack',title='Voting statistics of each cluster on Prop %d'%i,titlefont=dict(size=14), height = 300)
 			dict1[t].plotly_chart(fig, use_container_width=True,)
 			t+=1
+
+with st.container():
+	cluster_power = daily_stake()
+	cluster_power = cluster_power.merge(df[['NODE','cluster']], left_on='VALIDATOR_ADDRESS', right_on='NODE')
+	cluster_power = cluster_power [['DATE', 'VOTING_POWER', 'cluster']]
+	cluster_power = cluster_power.groupby(['cluster', 'DATE']).sum().reset_index()
+
+	voting_power = px.line(cluster_power, x="DATE", y="VOTING_POWER", color="cluster" , title="Estimated* voting power of clusters").update_yaxes(showgrid=False)
+	voting_power.update_layout(xaxis_title=None, yaxis_title='Voting Power (%)')
+	st.header("Voting power of each cluster")
+	st.markdown("""
+	`The voting power is estimated as tokens staked through superfluid is not included in this measurement.`
+	Credit to [@whaen](https://github.com/whaen) for the query!
+	""")
+	st.plotly_chart(voting_power, use_container_width=True)
 
 with st.container():
 	st.header("Keywords from each Clusters")
