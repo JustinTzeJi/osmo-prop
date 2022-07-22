@@ -289,6 +289,7 @@ st.markdown('```If you get a 504 error, reload the page```')
 st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
 with st.spinner(text="Querying data from Flipside Shroom SDK"):
 	res = quer(SQL_QUERY1)
+	cluster_power = daily_stake()
 
 column_labels=[] 
 column_labels = sorted(list(map(int, res['columnLabels'][3::])))
@@ -518,7 +519,6 @@ with st.container():
 			t+=1
 
 with st.container():
-	cluster_power = daily_stake()
 	cluster_power = cluster_power.merge(df[['NODE','cluster']], left_on='VALIDATOR_ADDRESS', right_on='NODE')
 	cluster_power = cluster_power [['DATE', 'VOTING_POWER', 'cluster']]
 	cluster_power = cluster_power.groupby(['cluster', 'DATE']).sum().reset_index()
