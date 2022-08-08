@@ -4,3 +4,4 @@ keyphrase_vectorizers
 sklearn
 pandas
 streamlit
+shroomdk
