@@ -11,7 +11,7 @@ from keyphrase_vectorizers import KeyphraseCountVectorizer
 from sklearn.decomposition import PCA
 import plotly.express as px
 import plotly.graph_objects as go
-
+from shroomdk import ShroomDK
 
 
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
