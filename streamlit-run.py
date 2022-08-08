@@ -16,7 +16,7 @@ from shroomdk import ShroomDK
 
 st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
 
-API_KEY = st.secrets["api_keys"]
+sdk = ShroomDK(st.secrets["api_keys"])
 
 SQL_DAILY_STAKING = """
 	-- superfluid staking amount are excluded
@@ -159,49 +159,33 @@ WHERE tx_status = 'SUCCEEDED')
 --order by voter
 
 """
-TTL_MINUTES = 15
 
-def create_query(SQL_QUERY): ## posts a flipside query to flipside sdk
-    r = requests.post(
-        'https://node-api.flipsidecrypto.com/queries', 
-        data=json.dumps({
-            "sql": SQL_QUERY,
-            "ttlMinutes": TTL_MINUTES
-        }),
-        headers={"Accept": "application/json", "Content-Type": "application/json", "x-api-key": API_KEY},
-    )
-    if r.status_code != 200:
-        raise Exception("Error creating query, got response: " + r.text + "with status code: " + str(r.status_code))
-    
-    return json.loads(r.text)
-    
-def get_query_results(token): ##retrieves query results from flipside sdk
-    r = requests.get(
-        'https://node-api.flipsidecrypto.com/queries/' + token, 
-        headers={"Accept": "application/json", "Content-Type": "application/json", "x-api-key": API_KEY}
-    )
-    if r.status_code != 200:
-        raise Exception("Error getting query results, got response: " + r.text + "with status code: " + str(r.status_code))
-    
-    data = json.loads(r.text)
-    if data['status'] == 'running':
-        time.sleep(10)
-        return get_query_results(token)
-        
-    return data
-def run(SQL_QUERY): ##generates a pivot query that aggregates all proposal id
-    query = create_query(SQL_QUERY)
-    token = query.get('token')
-    data = get_query_results(token)
-    return data
 
 @st.experimental_memo
 def quer(SQL_QUERY): ##generates the final dataframe of validators and voting results on each prop
-    pivot = run(SQL_QUERY)
-    query = create_query(PIVOT_QUERY+pivot['results'][0][0]) # concats the final query header and the pivot query generated
-    token2 = query.get('token')
-    data = get_query_results(token2)
-    return data
+	pivot = sdk.query(SQL_QUERY)
+	data = sdk.query(PIVOT_QUERY+[list(quer.values())[0] for quer in pivot.records][0])
+	column_labels=sorted(list(map(int,[it for it in data.columns][3::])))
+	column_labels.extend([it for it in data.columns][:3:])
+	df = pd.DataFrame(data=[it for it in data.rows],columns=column_labels)
+	df = df.replace({nan: 0})
+	return df
+
+@st.experimental_memo
+def daily_stake(): ##generates the final dataframe of validators and voting results on each prop
+	query = sdk.query(SQL_DAILY_STAKING)
+	column_labels=[it for it in query.columns]
+	df = pd.DataFrame(data=[it for it in query.rows],columns=column_labels)
+	return df
+
+def pca_fn(df):
+	X = df.drop(columns = ['VOTER','LABEL', 'NODE'])
+	pca = PCA()
+	Xt = pca.fit_transform(X)
+	km = KMeans(init="k-means++", n_clusters=4, n_init=4)
+	y_km = km.fit_predict(Xt)
+	# df['cluster']=pd.Series(y_km)
+	return Xt, y_km, pca.components_
 
 def ext_key(doc): ## using KeyBERT model to retreive key phrases/words, input string, output list of tuples of the result
   kw_model = KeyBERT()
@@ -220,7 +204,7 @@ def get_prop_desc(id): #retrieves proposal description useing proposal id throug
 
     return pd.Series([data['proposal']['content']['description'], data['proposal']['content']['@type']]) ## only selecting the proposal descripton and proposal type
 
-def cluster_df(cluster_num): ##generate counts of each type of vote for each proposal for the selected cluster
+def cluster_df(df,cluster_num): ##generate counts of each type of vote for each proposal for the selected cluster
   cluster_0 = df[df['cluster']==cluster_num]
   cluster_0_res = cluster_0.apply(lambda x: x.value_counts()).T.stack().drop(labels=['VOTER','LABEL','cluster']).to_frame().reset_index()
   return cluster_0_res
@@ -265,19 +249,11 @@ def prop_descr(): #generate df of proposal description and type
 
 @st.experimental_memo
 def keyword_data(): #retrieve keywords for each cluster
-	yes, no, no_with_veto = get_keywords(cluster_df(0))
-	yes1, no1, no_with_veto1 = get_keywords(cluster_df(1))
-	yes2, no2, no_with_veto2 = get_keywords(cluster_df(2))
-	yes3, no3, no_with_veto3 = get_keywords(cluster_df(3))
+	yes, no, no_with_veto = get_keywords(cluster_df(df,0))
+	yes1, no1, no_with_veto1 = get_keywords(cluster_df(df,1))
+	yes2, no2, no_with_veto2 = get_keywords(cluster_df(df,2))
+	yes3, no3, no_with_veto3 = get_keywords(cluster_df(df,3))
 	return yes, no, no_with_veto, yes1, no1, no_with_veto1, yes2, no2, no_with_veto2, yes3, no3, no_with_veto3
-
-@st.experimental_memo
-def daily_stake(): ##generates the final dataframe of validators and voting results on each prop
-	query = run(SQL_DAILY_STAKING)
-	column_labels=[] 
-	column_labels = query['columnLabels']
-	data = pd.DataFrame(data=query['results'],columns=column_labels)
-	return data
 
 st.title('Attempt to classify Osmosis validators based on voting activity')
 '''
@@ -285,22 +261,12 @@ st.title('Attempt to classify Osmosis validators based on voting activity')
 
 '''
 st.markdown("<br>",unsafe_allow_html=True)
-st.markdown('```If you get a 504 error, reload the page```')
 st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
 with st.spinner(text="Querying data from Flipside Shroom SDK"):
-	res = quer(SQL_QUERY1)
+	df = quer(SQL_QUERY1)
 	cluster_power = daily_stake()
 
-column_labels=[] 
-column_labels = sorted(list(map(int, res['columnLabels'][3::])))
-column_labels.extend(res['columnLabels'][:3:])
-df = pd.DataFrame(data=res['results'],columns=column_labels)
-df = df.replace({nan: 0})
-X = df.drop(columns = ['VOTER','LABEL', 'NODE'])
-pca = PCA()
-Xt = pca.fit_transform(X)
-km = KMeans(init="k-means++", n_clusters=4, n_init=4)
-y_km = km.fit_predict(Xt)
+Xt, y_km, pca_components = pca_fn(df)
 df['cluster']=pd.Series(y_km)
 
 with st.spinner(text="Querying Osmosis API for prop info..... This might take a while...."):
@@ -383,7 +349,7 @@ with st.container():
 	By figuring out the variance of each proposal in each axis, we can conclude the proposals that has most influnce on the clustering of validators. 
 	""")
 	with st.expander("Top 10 Proposals for X-axis:"):
-		xtop10 = pd.DataFrame(np.abs(pca.components_[0]))
+		xtop10 = pd.DataFrame(np.abs(pca_components[0]))
 		xtop10['prop'] = pd.DataFrame(df.columns[:-3])
 		xtop10 = xtop10.nlargest(10,0,'all')
 		s = ''
@@ -451,7 +417,7 @@ with st.container():
 			dict1[t].plotly_chart(fig, use_container_width=True)
 			t+=1
 	with st.expander("Top 10 Proposals for Y-axis:"):
-		ytop10 = pd.DataFrame(np.abs(pca.components_[1]))
+		ytop10 = pd.DataFrame(np.abs(pca_components[1]))
 		ytop10['prop'] = pd.DataFrame(df.columns[:-3])
 		ytop10 = ytop10.nlargest(10,0,'all')
 		s = ''
