@@ -14,6 +14,8 @@ from shroomdk import ShroomDK
 import re
 import collections
 
+st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
+
 class fsdata:
 	def __init__(self):
 		self.sdk = ShroomDK(st.secrets["api_keys"])
@@ -154,24 +156,28 @@ order by date desc
 		self.query_val()
 		self.mergedata()
 		self.daily_stake_f()
-
+	
 	def query_prop(self):
 		data = self.sdk.query(self.prop_votes_quer)
 		df = pd.DataFrame(data=data.rows,columns=data.columns).pivot_table(index = ['ADDRESS', 'LABEL', 'NODE'], columns='PROPOSAL_ID',values='VOTE_OPTION')
 		df.columns = df.columns.astype(int)
 		df = df.sort_index(axis=1).reset_index()
 		self.prop_votes = df
+		return self.prop_votes
 
 	def query_val(self):
 		validators = self.sdk.query(self.act_val_quer)
 		self.act_val = pd.DataFrame(data=validators.rows,columns=validators.columns)
+		return self.act_val
 
 	def mergedata(self):
 		self.act_val_prop_votes = pd.merge(self.act_val, self.prop_votes, how="left", on=['ADDRESS', 'LABEL', 'NODE']).replace({nan: 0})
+		return self.act_val_prop_votes
 
 	def daily_stake_f(self): ##generates the final dataframe of validators and voting results on each prop
 		query_stake = self.sdk.query(self.daily_stake_quer)
 		self.daily_stake = pd.DataFrame(data=query_stake.rows,columns=query_stake.columns)
+		return self.daily_stake
 
 class analytics:
 	def __init__(self,fsdata):
@@ -186,14 +192,17 @@ class analytics:
 		self.Xt = pca.fit_transform(X)
 		self.pca_data = pd.DataFrame(self.Xt).join(self.val_data.LABEL)
 		self.pca_components = pca.components_
+		return self.Xt, self.pca_data, self.pca_components
 		
 	def cluster_fn(self):
 		km = KMeans(init="k-means++", n_clusters=4, n_init=4)
 		self.cluster = km.fit_predict(self.Xt)
+		return self.cluster
 	
 	def mergeclusterdata(self):
 		self.main_data = self.val_data
 		self.main_data['cluster']=pd.Series(self.cluster)
+		return self.main_data
 
 class keybert:
 	def __init__(self,analytics):
@@ -215,6 +224,7 @@ class keybert:
 			data=[{'prop_id':int(props['proposal_id']),'title':str(props['content']['title']),'description':str(props['content']['description'])}]
 			df3 = pd.concat([df3, pd.DataFrame.from_records(data)])
 		self.props = df3.reset_index(drop=True)
+		return self.props
 	
 	def cluster_dict(self):
 		self.cluster_count={}
@@ -223,6 +233,7 @@ class keybert:
 			df = self.cluster_data[self.cluster_data['cluster']==cluster]
 			countdata = df.apply(lambda x: x.value_counts()).T.stack().drop(labels=['NODE','ADDRESS','LABEL','cluster']).to_frame().reset_index().rename(columns={'level_0': 'proposal_id', 'level_1': 'vote',0:'count'})
 			self.cluster_count[cluster] = countdata
+		return self.cluster_count, self.unique_clusters
 			
 	def extract(self,doc):
 		model = KeyBERT()
@@ -239,6 +250,7 @@ class keybert:
 				top20prop_words = re.sub(r"\S*https?:\S*", "",''.join(str(x) for x in self.props[self.props.prop_id.isin(top20prop)]['description'].to_list())).strip().replace('\\n',' ')
 				keywords = self.extract(top20prop_words)
 				self.clusterkeyword[cluster][option]=keywords
+		return self.clusterkeyword
 
 class displays():
 	def __init__(self,fsdata,analytics,keybert):
@@ -363,25 +375,28 @@ class displays():
 				keybert_chart.append(fig)
 				self.keybert_chart_[cluster_num]=keybert_chart
 
-class main():
-	st.set_page_config(page_title="Attempt to classify Osmosis validators based on voting activity", page_icon="⚗️", layout="wide", menu_items={'Report a Bug': "https://github.com/JustinTzeJi/osmo-prop/issues",'About': "An experiment"})
+@st.cache(suppress_st_warning=True,show_spinner=False,allow_output_mutation=True)
+def main():
+	st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
+	
+	with st.spinner(text="Querying data from Flipside Shroom SDK"):
+		data=fsdata()
+	with st.spinner(text="Analyzing Data"):
+		analysis=analytics(data)
+	with st.spinner(text="Querying Osmosis API for prop info, Extracting keywords & phrases with KeyBERT"):
+		keybert_analysis=keybert(analysis)
+	with st.spinner(text="Generating visuals"):
+		display_visuals=displays(data,analysis,keybert_analysis)
+	return data,analysis,keybert_analysis,display_visuals
+
+if __name__ == "__main__":
 	st.title('Attempt to classify Osmosis validators based on voting activity')
 	'''
 		[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
 
 	'''
 	st.markdown("<br>",unsafe_allow_html=True)
-	st.markdown('```Querying data from Osmosis API and KeyBERT processing will take a moment```')
-
-	with st.spinner(text="Querying data from Flipside Shroom SDK"):
-		fsdata=fsdata()
-	with st.spinner(text="Analyzing Data"):
-		analytics=analytics(fsdata)
-	with st.spinner(text="Querying Osmosis API for prop info, Extracting keywords & phrases with KeyBERT"):
-		keybert=keybert(analytics)
-	with st.spinner(text="Generating visuals"):
-		displays=displays(fsdata,analytics,keybert)
-	
+	data,analysis,keybert_analysis,display_visuals = main()
 	with st.container():
 		st.header('The Problem Statement')
 		st.markdown('With the ever growing amount and ever changing list of validators on the Osmosis chain, how does one evaluate and select validator with similar *on-chain "politics"/viewpoints* as oneself. It is a laborious task to monitor and keep up with validator socials, and voting activities on each proposal.')
@@ -397,12 +412,12 @@ class main():
 		""")
 
 	with st.expander('Preview of data'):
-		st.dataframe(displays.display_df)
-	
+		st.dataframe(display_visuals.display_df)
+
 	with st.container():
 		st.header("Voting activity of Osmosis Validators")
-		st.plotly_chart(displays.df_heatmap, use_container_width=True)
-	
+		st.plotly_chart(display_visuals.df_heatmap, use_container_width=True)
+
 	with st.container():
 		st.header("Clustering of validators")
 		st.markdown("""
@@ -410,43 +425,41 @@ class main():
 		1. Voting data is dimensionaly reduced using *Principal COmoponent Analysis* (PCA).
 		2. PCA-ed data is clustered using *K-means clustering* algorithm, using `number of target cluster` of 4
 		""")	
-		st.plotly_chart(displays.df_pca, use_container_width=True)	
-		with st.expander("Validators in each cluster"):
-			for column, cluster in zip(st.columns(len(keybert.unique_clusters)), keybert.unique_clusters):
-				column.dataframe(analytics.main_data[analytics.main_data['cluster']==cluster].reset_index().rename(mapper={'LABEL':'Validators in Cluster %s'%cluster}, axis='columns')['Validators in Cluster %s'%cluster])
-		
-		st.markdown("""
-		### Understanding the axes:
-		Each axis consist of voting results from all proposals but condensed in a way that each of the proposals will have different weights depending on the variance of voting results of the proposal.
-		By figuring out the variance of each proposal in each axis, we can conclude the proposals that has most influnce on the clustering of validators. 
-		""")
-		for axis in displays.pca_bar:
-			with st.expander("Top 10 Proposals for %s-axis:"%axis):
-				for i, column in enumerate(st.columns(5)):
-					column.plotly_chart(displays.pca_bar[axis][1][i], use_container_width=True) 
-				for i, column in enumerate(st.columns(5)):
-					column.plotly_chart(displays.pca_bar[axis][2][i], use_container_width=True) 
-
-	with st.container():
-		st.header("Voting power of each cluster")
-		st.markdown("""
-		`The voting power is estimated as tokens staked through superfluid is not included in this measurement.`
-		Credit to [@whaen](https://github.com/whaen) for the query!
-		""")
-		st.plotly_chart(displays.voting_power, use_container_width=True)
+	st.plotly_chart(display_visuals.df_pca, use_container_width=True)	
+	with st.expander("Validators in each cluster"):
+		a_data = analysis.main_data
+		for column, cluster in zip(st.columns(len(keybert_analysis.unique_clusters)), keybert_analysis.unique_clusters):
+			column.dataframe(a_data[a_data['cluster']==cluster].reset_index().rename(mapper={'LABEL':'Validators in Cluster %s'%cluster}, axis='columns')['Validators in Cluster %s'%cluster])
 	
-	with st.container():
-		st.header("Keywords from each Clusters")
-		st.markdown("""
-		### Methodology:
-		1. Top 20 Proposal (with highest number of same votes) of each type of vote (`YES`, `NO`, `NO WITH VETO`) are selected
-		2. The proposal descriptions are retreived from Osmosis LCD, URLs in the description are removed.
-		3. Proposals description from each category and cluster is concatenated and keywords/phrases are extracted using `KeyBERT` algorithm, with `KeyphraseVectorizers()` and  `Maximal Margin Relevance`
-		""")
-		for cluster in displays.keybert_chart_:
-			with st.expander(cluster):
-				for chart in displays.keybert_chart_[cluster]:
-					st.plotly_chart(chart, use_container_width=True)
+	st.markdown("""
+	### Understanding the axes:
+	Each axis consist of voting results from all proposals but condensed in a way that each of the proposals will have different weights depending on the variance of voting results of the proposal.
+	By figuring out the variance of each proposal in each axis, we can conclude the proposals that has most influnce on the clustering of validators. 
+	""")
+	for axis in display_visuals.pca_bar:
+		with st.expander("Top 10 Proposals for %s-axis:"%axis):
+			for i, column in enumerate(st.columns(5)):
+				column.plotly_chart(display_visuals.pca_bar[axis][1][i], use_container_width=True) 
+			for i, column in enumerate(st.columns(5)):
+				column.plotly_chart(display_visuals.pca_bar[axis][2][i], use_container_width=True) 
 
-if __name__ == "__main__":
-    main()
+with st.container():
+	st.header("Voting power of each cluster")
+	st.markdown("""
+	`The voting power is estimated as tokens staked through superfluid is not included in this measurement.`
+	Credit to [@whaen](https://github.com/whaen) for the query!
+	""")
+	st.plotly_chart(display_visuals.voting_power, use_container_width=True)
+
+with st.container():
+	st.header("Keywords from each Clusters")
+	st.markdown("""
+	### Methodology:
+	1. Top 20 Proposal (with highest number of same votes) of each type of vote (`YES`, `NO`, `NO WITH VETO`) are selected
+	2. The proposal descriptions are retreived from Osmosis LCD, URLs in the description are removed.
+	3. Proposals description from each category and cluster is concatenated and keywords/phrases are extracted using `KeyBERT` algorithm, with `KeyphraseVectorizers()` and  `Maximal Margin Relevance`
+	""")
+	for cluster in display_visuals.keybert_chart_:
+		with st.expander(cluster):
+			for chart in display_visuals.keybert_chart_[cluster]:
+				st.plotly_chart(chart, use_container_width=True)
