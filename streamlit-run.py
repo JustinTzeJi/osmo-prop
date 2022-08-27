@@ -391,11 +391,11 @@ def main():
 
 if __name__ == "__main__":
 	st.title('Attempt to classify Osmosis validators based on voting activity')
-	'''
+
+	st.markdown(	'''
 		[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
 
-	'''
-	st.markdown("<br>",unsafe_allow_html=True)
+	''',unsafe_allow_html=True)
 	data,analysis,keybert_analysis,display_visuals = main()
 	with st.container():
 		st.header('The Problem Statement')
