@@ -1,5 +1,5 @@
 To do list:
 - [X] Add back caching query functions
-- [ ] Changing clustering strategy to OPTICS
-- [ ] Changing dimension reduction strategy to NMF
-- [ ] View stats on timespans
+- [X] Changing clustering strategy to OPTICS
+- [X] Changing dimension reduction strategy to NMF
+- [X] View stats on timespans (select range of proposals)
