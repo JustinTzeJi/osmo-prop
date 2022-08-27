@@ -418,15 +418,6 @@ def analytika(data,index1,index2):
 	return analysis,keybert_analysis,display_visuals
 
 if __name__ == "__main__":
-<<<<<<< HEAD
-	st.title('Attempt to classify Osmosis validators based on voting activity')
-
-	st.markdown(	'''
-		[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
-
-	''',unsafe_allow_html=True)
-	data,analysis,keybert_analysis,display_visuals = main()
-=======
 	st.markdown(render_svg(['osmo.svg','scientist.svg']), unsafe_allow_html=True)
 	st.title('Attempt to identify Osmosis validators with similar *politics* based on voting activity')
 	'''
@@ -435,7 +426,6 @@ if __name__ == "__main__":
 	'''
 	st.markdown("<br>",unsafe_allow_html=True)
 	data = fs()
->>>>>>> 306887dee0b2670198e3f1a2caa307681cddbb38
 	with st.container():
 		st.header('The Problem Statement')
 		st.markdown('With the ever growing amount and ever changing list of validators on the Osmosis chain, how does one evaluate and select validator with similar *on-chain "politics"/viewpoints* as oneself. It is a laborious task to monitor and keep up with validator socials, and voting activities on each proposal.')
