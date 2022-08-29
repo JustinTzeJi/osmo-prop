@@ -430,14 +430,14 @@ if __name__ == "__main__":
 <meta property="og:url" content="https://justintzeji-osmo-prop-streamlit-run-yqvlqt.streamlitapp.com/">
 <meta property="og:title" content="Osmosis Validator Voting Activities">
 <meta property="og:description" content="A dashboard to observe validator voting behaviours on the Osmosis Chain.">
-<meta property="og:image" content="">
+<meta property="og:image" content="preview.png">
 
 <!-- Twitter -->
 <meta property="twitter:card" content="summary_large_image">
 <meta property="twitter:url" content="https://justintzeji-osmo-prop-streamlit-run-yqvlqt.streamlitapp.com/">
 <meta property="twitter:title" content="Osmosis Validator Voting Activities">
 <meta property="twitter:description" content="A dashboard to observe validator voting behaviours on the Osmosis Chain.">
-<meta property="twitter:image" content="">""",unsafe_allow_html=True)
+<meta property="twitter:image" content="preview.png">""",unsafe_allow_html=True)
 	'''
 		[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
 
