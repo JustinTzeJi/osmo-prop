@@ -420,6 +420,24 @@ def analytika(data,index1,index2):
 if __name__ == "__main__":
 	st.markdown(render_svg(['osmo.svg','scientist.svg']), unsafe_allow_html=True)
 	st.title('Attempt to identify Osmosis validators with similar *politics* based on voting activity')
+	st.markdown("""<!-- Primary Meta Tags -->
+<title>Osmosis Validator Voting Activities</title>
+<meta name="title" content="Osmosis Validator Voting Activities">
+<meta name="description" content="A dashboard to observe validator voting behaviours on the Osmosis Chain.">
+
+<!-- Open Graph / Facebook -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://justintzeji-osmo-prop-streamlit-run-yqvlqt.streamlitapp.com/">
+<meta property="og:title" content="Osmosis Validator Voting Activities">
+<meta property="og:description" content="A dashboard to observe validator voting behaviours on the Osmosis Chain.">
+<meta property="og:image" content="">
+
+<!-- Twitter -->
+<meta property="twitter:card" content="summary_large_image">
+<meta property="twitter:url" content="https://justintzeji-osmo-prop-streamlit-run-yqvlqt.streamlitapp.com/">
+<meta property="twitter:title" content="Osmosis Validator Voting Activities">
+<meta property="twitter:description" content="A dashboard to observe validator voting behaviours on the Osmosis Chain.">
+<meta property="twitter:image" content="">""",unsafe_allow_html=True)
 	'''
 		[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
 
