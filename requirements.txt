@@ -1,7 +1,7 @@
 plotly
 keybert
 keyphrase_vectorizers
-sklearn
+scikit-learn
 pandas
 streamlit
 shroomdk
