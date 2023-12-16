@@ -10,7 +10,7 @@ from sklearn.decomposition import NMF
 from sklearn.cluster import OPTICS
 import plotly.express as px
 import plotly.graph_objects as go
-from shroomdk import ShroomDK
+from flipside import Flipside
 import re
 import collections
 import base64
@@ -19,7 +19,7 @@ st.set_page_config(page_title="Attempt to classify Osmosis validators based on v
 
 class fsdata:
 	def __init__(self):
-		self.sdk = ShroomDK(st.secrets["api_keys"])
+		self.sdk = Flipside(st.secrets["api_keys"], "https://api-v2.flipsidecrypto.xyz")
 		self.act_val_quer = """SELECT address as node, raw_metadata[0]:account_address as address, label
 FROM osmosis.core.dim_labels
 WHERE label_subtype = 'validator'

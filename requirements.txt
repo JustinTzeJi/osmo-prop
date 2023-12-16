@@ -4,4 +4,4 @@ keyphrase_vectorizers
 scikit-learn
 pandas
 streamlit
-shroomdk
+flipside
