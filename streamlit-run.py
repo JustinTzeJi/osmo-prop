@@ -408,7 +408,6 @@ def render_svg(svg_file):
     html = r'<div align="center">%s</div>' % all_svg
     return html
 
-@st.cache_data
 def fs():
     st.markdown(
         "```Querying data from Osmosis API and KeyBERT processing will take a moment```"
@@ -418,8 +417,6 @@ def fs():
         data = fsdata()
     return data
 
-
-@st.cache_data
 def analytika(_data, index1, index2):
     with st.spinner(text="Analyzing Data"):
         analysis = analytics(_data, index1, index2)
@@ -435,7 +432,7 @@ def analytika(_data, index1, index2):
 if __name__ == "__main__":
     st.markdown(render_svg(["osmo.svg", "scientist.svg"]), unsafe_allow_html=True)
     st.title(
-        "Osmosis validator onchain *polictics*"
+        "Osmosis validator onchain *politics*"
     )
     """
 		[![Repo](https://badgen.net/badge/icon/GitHub?icon=github&label)](https://github.com/JustinTzeJi/osmo-prop) 
